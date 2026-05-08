@@ -22,11 +22,18 @@ type AppDeps = {
 export function createApp(deps: AppDeps) {
     setAppContext(deps);
 
+    const allowedOrigins = [
+        'http://localhost:3000',
+        process.env.FRONTEND_URL,
+    ].filter(Boolean) as string[];
+
     const app = express();
     const httpServer = createServer(app);
-    const io = new Server(httpServer, { cors: { origin: '*' } });
+    const io = new Server(httpServer, {
+        cors: { origin: allowedOrigins, credentials: true },
+    });
 
-    app.use(cors());
+    app.use(cors({ origin: allowedOrigins, credentials: true }));
     app.use(express.json());
 
     app.use('/api/auth', authRoutes);
