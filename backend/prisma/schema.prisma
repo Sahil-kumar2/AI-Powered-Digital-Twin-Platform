@@ -1,0 +1,113 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id             String            @id @default(uuid())
+  email          String            @unique
+  password       String
+  name           String?
+  role           String            @default("engineer")
+  organizationId String?
+  organization   Organization?     @relation(fields: [organizationId], references: [id])
+  systems        ElectronicSystem[]
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+}
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  users     User[]
+  createdAt DateTime @default(now())
+}
+
+model ElectronicSystem {
+  id                String             @id @default(uuid())
+  name              String
+  description       String?
+  userId            String
+  user              User               @relation(fields: [userId], references: [id])
+  components        Component[]
+  connections       Connection[]
+  simulationConfigs SimulationConfig[]
+  alertRules        AlertRule[]
+  alerts            Alert[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+}
+
+model Component {
+  id          String           @id @default(uuid())
+  systemId    String
+  system      ElectronicSystem @relation(fields: [systemId], references: [id], onDelete: Cascade)
+  type        String
+  name        String
+  x           Float
+  y           Float
+  parameters  String
+  sourceConns Connection[]     @relation("SourceComponent")
+  targetConns Connection[]     @relation("TargetComponent")
+}
+
+model Connection {
+  id        String           @id @default(uuid())
+  systemId  String
+  system    ElectronicSystem @relation(fields: [systemId], references: [id], onDelete: Cascade)
+  sourceId  String
+  source    Component        @relation("SourceComponent", fields: [sourceId], references: [id])
+  targetId  String
+  target    Component        @relation("TargetComponent", fields: [targetId], references: [id])
+  sourcePin String?
+  targetPin String?
+}
+
+model SimulationConfig {
+  id        String           @id @default(uuid())
+  systemId  String
+  system    ElectronicSystem @relation(fields: [systemId], references: [id], onDelete: Cascade)
+  speed     Float            @default(1.0)
+  tickMs    Int              @default(1000)
+  failures  String?
+  status    String           @default("idle")
+  createdAt DateTime         @default(now())
+}
+
+model TelemetryData {
+  id          String   @id @default(uuid())
+  systemId    String
+  componentId String
+  metric      String
+  value       Float
+  timestamp   DateTime @default(now())
+}
+
+model AlertRule {
+  id        String           @id @default(uuid())
+  systemId  String
+  system    ElectronicSystem @relation(fields: [systemId], references: [id], onDelete: Cascade)
+  metric    String
+  operator  String
+  threshold Float
+  severity  String           @default("warning")
+  enabled   Boolean          @default(true)
+  createdAt DateTime         @default(now())
+}
+
+model Alert {
+  id          String           @id @default(uuid())
+  systemId    String
+  system      ElectronicSystem @relation(fields: [systemId], references: [id], onDelete: Cascade)
+  ruleId      String?
+  componentId String?
+  severity    String
+  message     String
+  status      String           @default("active")
+  createdAt   DateTime         @default(now())
+  resolvedAt  DateTime?
+}
