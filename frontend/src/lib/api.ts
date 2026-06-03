@@ -1,4 +1,8 @@
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001") + "/api";
+function normalizeBaseUrl(value: string) {
+    return value.replace(/\/+$/, "");
+}
+
+const API_BASE = `${normalizeBaseUrl(process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001")}/api`;
 
 export class ApiError extends Error {
     status: number;

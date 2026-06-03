@@ -54,43 +54,34 @@ router.put('/:id/save', async (req: any, res: any) => {
         const system = await prisma.electronicSystem.findUnique({ where: { id: req.params.id } });
         if (!system || system.userId !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
 
-        const { components: comps, connections: conns } = req.body;
+        const comps = Array.isArray(req.body.components) ? req.body.components : [];
+        const conns = Array.isArray(req.body.connections) ? req.body.connections : [];
 
-        await prisma.$transaction(async (tx: any) => {
-            // 1. Delete existing connections first (FK constraint)
-            await tx.connection.deleteMany({ where: { systemId: req.params.id } });
-            // 2. Delete existing components
-            await tx.component.deleteMany({ where: { systemId: req.params.id } });
-
-            // 3. Re-create components with their IDs preserved
-            for (const c of comps) {
-                await tx.component.create({
-                    data: {
-                        id: c.id,
-                        systemId: req.params.id,
-                        type: c.type,
-                        name: c.name,
-                        x: c.x,
-                        y: c.y,
-                        parameters: c.parameters || '{}',
-                    }
-                });
-            }
-
-            // 4. Create connections
-            for (const conn of conns) {
-                await tx.connection.create({
-                    data: {
-                        id: conn.id,
-                        systemId: req.params.id,
-                        sourceId: conn.sourceId,
-                        targetId: conn.targetId,
-                        sourcePin: conn.sourceHandle || null,
-                        targetPin: conn.targetHandle || null,
-                    }
-                });
-            }
-        });
+        await prisma.$transaction([
+            prisma.connection.deleteMany({ where: { systemId: req.params.id } }),
+            prisma.component.deleteMany({ where: { systemId: req.params.id } }),
+            prisma.component.createMany({
+                data: comps.map((c: any) => ({
+                    id: c.id,
+                    systemId: req.params.id,
+                    type: c.type,
+                    name: c.name,
+                    x: c.x,
+                    y: c.y,
+                    parameters: c.parameters || '{}',
+                })),
+            }),
+            prisma.connection.createMany({
+                data: conns.map((conn: any) => ({
+                    id: conn.id,
+                    systemId: req.params.id,
+                    sourceId: conn.sourceId,
+                    targetId: conn.targetId,
+                    sourcePin: conn.sourceHandle || null,
+                    targetPin: conn.targetHandle || null,
+                })),
+            }),
+        ]);
 
         res.json({ message: 'System saved', components: comps.length, connections: conns.length });
     } catch (error: any) {

@@ -1,6 +1,10 @@
 import { io } from "socket.io-client";
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? "http://localhost:3001";
+function normalizeBaseUrl(value: string) {
+    return value.replace(/\/+$/, "");
+}
+
+const WS_URL = normalizeBaseUrl(process.env.NEXT_PUBLIC_WS_URL ?? "http://localhost:3001");
 
 export const socket = io(WS_URL, {
     autoConnect: true,

@@ -22,18 +22,52 @@ type AppDeps = {
 export function createApp(deps: AppDeps) {
     setAppContext(deps);
 
-    const allowedOrigins = [
+    const allowedOrigins = new Set<string>([
         'http://localhost:3000',
+        'http://127.0.0.1:3000',
+    ]);
+
+    const rawOrigins = [
         process.env.FRONTEND_URL,
-    ].filter(Boolean) as string[];
+        process.env.FRONTEND_URLS,
+    ]
+        .filter(Boolean)
+        .flatMap((value) => value!.split(','));
+
+    rawOrigins.forEach((origin) => {
+        const normalized = origin.trim().replace(/\/+$/, '');
+        if (normalized) {
+            allowedOrigins.add(normalized);
+        }
+    });
+
+    const corsOrigin = (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+        if (!origin) {
+            callback(null, true);
+            return;
+        }
+
+        if (allowedOrigins.has(origin)) {
+            callback(null, true);
+            return;
+        }
+
+        const isVercelApp = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin);
+        if (isVercelApp) {
+            callback(null, true);
+            return;
+        }
+
+        callback(new Error(`CORS blocked for origin ${origin}`));
+    };
 
     const app = express();
     const httpServer = createServer(app);
     const io = new Server(httpServer, {
-        cors: { origin: allowedOrigins, credentials: true },
+        cors: { origin: corsOrigin, credentials: true },
     });
 
-    app.use(cors({ origin: allowedOrigins, credentials: true }));
+    app.use(cors({ origin: corsOrigin, credentials: true }));
     app.use(express.json());
 
     app.use('/api/auth', authRoutes);
